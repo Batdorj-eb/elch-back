@@ -56,14 +56,16 @@ const authRoutes = require('./routes/authRoutes');
 const articleRoutes = require('./routes/articleRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const commentRoutes = require('./routes/commentRoutes');
-const uploadRoutes = require('./routes/uploadRoutes'); // 🆕 Upload routes
+const uploadRoutes = require('./routes/uploadRoutes');
+const searchRoutes = require('./routes/searchRoutes');
 
 // Routes ашиглах
-app.use('/api/auth', authRoutes);           // /api/auth/...
-app.use('/api/articles', articleRoutes);    // /api/articles/...
-app.use('/api/categories', categoryRoutes); // /api/categories/...
-app.use('/api/comments', commentRoutes);    // /api/comments/...
-app.use('/api/upload', uploadRoutes);       // /api/upload/... 🆕
+app.use('/api/auth', authRoutes);      
+app.use('/api/articles', articleRoutes);  
+app.use('/api/categories', categoryRoutes); 
+app.use('/api/comments', commentRoutes);    
+app.use('/api/upload', uploadRoutes);      
+app.use('/api/search', searchRoutes);
 
 // ============================================
 // TEST ROUTE (Server ажиллаж байгааг шалгах)
@@ -140,6 +142,7 @@ app.listen(PORT, () => {
   console.log('');
   console.log('Press CTRL+C to stop');
   console.log('');
+  console.log('   - Search:     http://localhost:5000/api/search');
 });
 
 // Graceful shutdown
