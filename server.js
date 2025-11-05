@@ -16,19 +16,7 @@ const app = express();
 // ============================================
 
 // 🔥 ШИНЭЧЛЭГДСЭН CORS - Admin Panel + Frontend
-app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',  // Next.js frontend
-    'http://localhost:5173',                               // Vite admin panel
-    'http://localhost:5174',                               // Backup admin port
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 
 // JSON body parser (POST/PUT requests-д зориулж)
 app.use(express.json());
