@@ -464,4 +464,50 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+
+// ============================================
+// INCREMENT VIEW COUNT (POST /api/articles/slug/:slug/increment-view)
+// ============================================
+// Энийг articleRoutes.js-ийн доор (module.exports-ийн өмнө) нэмнэ
+
+router.post('/slug/:slug/increment-view', async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // View count нэмэгдүүлэх
+    await db.query(
+      'UPDATE articles SET views = views + 1 WHERE slug = ? AND status = "published"',
+      [slug]
+    );
+
+    // Шинэчлэгдсэн view count буцаах
+    const [rows] = await db.query(
+      'SELECT id, views FROM articles WHERE slug = ?',
+      [slug]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Нийтлэл олдсонгүй.' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: {
+        articleId: rows[0].id,
+        views: rows[0].views
+      }
+    });
+
+  } catch (error) {
+    console.error('View increment error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'View count нэмэхэд алдаа гарлаа.' 
+    });
+  }
+});
+
 module.exports = router;
