@@ -9,10 +9,12 @@ const fs = require('fs');
 const { authenticateToken } = require('../middleware/auth');
 
 // Upload directory үүсгэх
-const uploadDir = path.join(__dirname, '../uploads');
+const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+// const uploadDir = '/var/www/elch/uploads';  // server upload directory
 
 // Multer storage configuration
 const storage = multer.diskStorage({
