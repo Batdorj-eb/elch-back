@@ -1,4 +1,4 @@
-// routes/articleRoutes.js
+// routes/articleRoutes.js - FIXED VERSION
 
 const express = require('express');
 const router = express.Router();
@@ -10,32 +10,21 @@ const { authenticateToken } = require('../middleware/auth');
 // ============================================
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
-    // Get total articles
     const [articlesCount] = await db.query(
       'SELECT COUNT(*) as total FROM articles'
     );
-
-    // Get total views
     const [viewsCount] = await db.query(
       'SELECT SUM(view_count) as total FROM articles'
     );
-
-    // Get total comments
     const [commentsCount] = await db.query(
       'SELECT COUNT(*) as total FROM comments WHERE is_approved = true'
     );
-
-    // Get total categories
     const [categoriesCount] = await db.query(
       'SELECT COUNT(*) as total FROM categories'
     );
-
-    // Get published articles count
     const [publishedCount] = await db.query(
       'SELECT COUNT(*) as total FROM articles WHERE status = "published"'
     );
-
-    // Get draft articles count
     const [draftCount] = await db.query(
       'SELECT COUNT(*) as total FROM articles WHERE status = "draft"'
     );
@@ -72,6 +61,7 @@ router.get('/featured', async (req, res) => {
         a.id, a.title, a.slug, a.excerpt, a.content, 
         a.cover_image, a.featured_image,
         a.category_id, a.author_id, 
+        a.show_author,
         a.view_count, a.views,
         a.status, a.tags,
         a.is_featured, a.is_breaking, 
@@ -114,6 +104,7 @@ router.get('/breaking', async (req, res) => {
         a.id, a.title, a.slug, a.excerpt, a.content, 
         a.cover_image, a.featured_image,
         a.category_id, a.author_id, 
+        a.show_author,
         a.view_count, a.views,
         a.status, a.tags,
         a.is_featured, a.is_breaking, 
@@ -164,6 +155,7 @@ router.get('/', async (req, res) => {
         a.id, a.title, a.slug, a.excerpt, a.content, 
         a.cover_image, a.featured_image,
         a.category_id, a.author_id, 
+        a.show_author,
         a.view_count, a.views,
         a.status, a.tags,
         a.is_featured, a.is_breaking, 
@@ -177,28 +169,22 @@ router.get('/', async (req, res) => {
     `;
     const params = [];
 
-    // Filter by category
     if (category) {
       query += ' AND c.slug = ?';
       params.push(category);
     }
 
-    // Filter by status
     if (status) {
       query += ' AND a.status = ?';
       params.push(status);
     }
 
-    // Search
     if (search) {
       query += ' AND (a.title LIKE ? OR a.content LIKE ?)';
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    // Sort
     query += ` ORDER BY a.${sort} ${order}`;
-
-    // Pagination
     query += ' LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
@@ -258,6 +244,7 @@ router.get('/:id', async (req, res) => {
         a.*,
         a.featured_image as cover_image,
         a.views as view_count,
+        a.show_author,
         c.name as category_name, c.slug as category_slug,
         u.full_name as author_name, u.username as author_username
       FROM articles a
@@ -297,6 +284,7 @@ router.post('/', authenticateToken, async (req, res) => {
       excerpt,
       content,
       category_id,
+      show_author,
       cover_image,
       tags,
       status = 'draft',
@@ -325,12 +313,12 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    // Insert article
+    // ✅ FIXED: Column болон values эрэмбэ зөв болгосон
     const [result] = await db.query(`
       INSERT INTO articles (
         title, slug, excerpt, content, category_id, author_id,
-        cover_image, tags, status, is_featured, is_breaking
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        show_author, cover_image, tags, status, is_featured, is_breaking
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       title,
       slug,
@@ -338,6 +326,7 @@ router.post('/', authenticateToken, async (req, res) => {
       content,
       category_id,
       req.user.id,
+      show_author || 1,  // ✅ Default: харуулах
       cover_image,
       tags,
       status,
@@ -374,6 +363,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       content,
       category_id,
       cover_image,
+      show_author,
       tags,
       status,
       is_featured,
@@ -389,7 +379,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // Update article
+    // ✅ FIXED: Column болон values эрэмбэ зөв болгосон
     await db.query(`
       UPDATE articles SET
         title = ?,
@@ -397,6 +387,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         excerpt = ?,
         content = ?,
         category_id = ?,
+        show_author = ?,
         cover_image = ?,
         tags = ?,
         status = ?,
@@ -410,7 +401,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       excerpt,
       content,
       category_id,
-      cover_image,
+      show_author,  // ✅ Зөв байрлалд
+      cover_image,  // ✅ Зөв байрлалд
       tags,
       status,
       is_featured ? 1 : 0,
@@ -438,10 +430,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Delete comments first
     await db.query('DELETE FROM comments WHERE article_id = ?', [id]);
-
-    // Delete article
     const [result] = await db.query('DELETE FROM articles WHERE id = ?', [id]);
 
     if (result.affectedRows === 0) {
@@ -464,23 +453,18 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-
 // ============================================
-// INCREMENT VIEW COUNT (POST /api/articles/slug/:slug/increment-view)
+// INCREMENT VIEW COUNT
 // ============================================
-// Энийг articleRoutes.js-ийн доор (module.exports-ийн өмнө) нэмнэ
-
 router.post('/slug/:slug/increment-view', async (req, res) => {
   try {
     const { slug } = req.params;
 
-    // View count нэмэгдүүлэх
     await db.query(
       'UPDATE articles SET views = views + 1 WHERE slug = ? AND status = "published"',
       [slug]
     );
 
-    // Шинэчлэгдсэн view count буцаах
     const [rows] = await db.query(
       'SELECT id, views FROM articles WHERE slug = ?',
       [slug]
@@ -500,7 +484,6 @@ router.post('/slug/:slug/increment-view', async (req, res) => {
         views: rows[0].views
       }
     });
-
   } catch (error) {
     console.error('View increment error:', error);
     res.status(500).json({ 
