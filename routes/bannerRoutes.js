@@ -37,9 +37,9 @@ router.get('/', async (req, res) => {
 });
 
 // ============================================
-// GET admin бүх banners (private)
+// GET admin бүх banners (public - no auth)
 // ============================================
-router.get('/admin', authenticateToken, async (req, res) => {
+router.get('/admin', async (req, res) => {
   try {
     const [banners] = await db.query(
       'SELECT * FROM banners ORDER BY type, display_order ASC, created_at DESC'
