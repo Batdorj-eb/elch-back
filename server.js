@@ -18,12 +18,24 @@ const app = express();
 
 // CORS тохиргоо
 const corsOptions = {
-  origin: [
-    'http://72.60.195.81:3000',
-    'http://72.60.195.81:3001',
+    origin: [
+    // Production HTTPS
+    'https://elch.mn',
+    'https://www.elch.mn',
+    'https://admin.elch.mn',
+    'https://api.elch.mn',
+    // Production HTTP
     'http://elch.mn',
+    'http://www.elch.mn',
     'http://elch.mn:3000',
-    'http://elch.mn:3001',
+    'http://elch.mn:3001',    // ← Admin port
+    'http://elch.mn:5000',
+    // IP based
+    'http://72.60.195.81',
+    'http://72.60.195.81:3000',
+    'http://72.60.195.81:3001',  // ← Admin port
+    'http://72.60.195.81:5000',
+    // Development
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:5173'
@@ -68,12 +80,13 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 
+
 // Routes ашиглах
-app.use('/api/auth', authRoutes);      
-app.use('/api/articles', articleRoutes);  
-app.use('/api/categories', categoryRoutes); 
-app.use('/api/comments', commentRoutes);    
-app.use('/api/upload', uploadRoutes);      
+app.use('/api/auth', authRoutes);
+app.use('/api/articles', articleRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/upload', uploadRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/banners', bannerRoutes);
 
@@ -118,7 +131,7 @@ app.use((req, res) => {
 // ============================================
 app.use((err, req, res, next) => {
   console.error('❌ Серверийн алдаа:', err);
-  
+
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Серверийн алдаа гарлаа.',
@@ -131,7 +144,7 @@ app.use((err, req, res, next) => {
 // ============================================
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('╔════════════════════════════════════════╗');
   console.log('║   🚀 ELCH NEWS Backend Server         ║');
