@@ -80,6 +80,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const userRoutes = require('./routes/userRoutes');
+const submissionRoutes = require('./routes/submissionRoutes');
 
 
 // Routes ашиглах
@@ -91,6 +92,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/submissions', submissionRoutes);
 
 // ============================================
 // TEST ROUTE (Server ажиллаж байгааг шалгах)
