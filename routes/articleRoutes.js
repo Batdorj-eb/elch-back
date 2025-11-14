@@ -1,4 +1,4 @@
-// routes/articleRoutes.js - FIXED VERSION
+// routes/articleRoutes.js - FIXED VERSION with featured_image support
 
 const express = require('express');
 const router = express.Router();
@@ -234,6 +234,7 @@ router.get('/', async (req, res) => {
 
 // ============================================
 // GET SINGLE ARTICLE
+// ✅ FIXED: Removed alias, returns both fields properly
 // ============================================
 router.get('/:id', async (req, res) => {
   try {
@@ -242,16 +243,18 @@ router.get('/:id', async (req, res) => {
     const [articles] = await db.query(`
       SELECT 
         a.*,
-        a.featured_image as cover_image,
         a.views as view_count,
-        a.show_author,
         c.name as category_name, c.slug as category_slug,
-        u.full_name as author_name, u.username as author_username
+        u.full_name as author_name, u.username as author_username,
+        u.avatar
       FROM articles a
       LEFT JOIN categories c ON a.category_id = c.id
       LEFT JOIN users u ON a.author_id = u.id
       WHERE a.id = ? OR a.slug = ?
     `, [id, id]);
+    
+    // ✅ REMOVED: a.featured_image as cover_image
+    // Now properly returns featured_image field
 
     if (articles.length === 0) {
       return res.status(404).json({
@@ -275,6 +278,7 @@ router.get('/:id', async (req, res) => {
 
 // ============================================
 // CREATE ARTICLE (Admin only)
+// ✅ FIXED: Changed cover_image to featured_image
 // ============================================
 router.post('/', authenticateToken, async (req, res) => {
   try {
@@ -285,7 +289,7 @@ router.post('/', authenticateToken, async (req, res) => {
       content,
       category_id,
       show_author,
-      cover_image,
+      featured_image,  // ✅ CHANGED: cover_image → featured_image
       tags,
       status = 'draft',
       is_featured = false,
@@ -313,11 +317,11 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    // ✅ FIXED: Column болон values эрэмбэ зөв болгосон
+    // ✅ FIXED: Use featured_image instead of cover_image
     const [result] = await db.query(`
       INSERT INTO articles (
         title, slug, excerpt, content, category_id, author_id,
-        show_author, cover_image, tags, status, is_featured, is_breaking
+        show_author, featured_image, tags, status, is_featured, is_breaking
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       title,
@@ -326,8 +330,8 @@ router.post('/', authenticateToken, async (req, res) => {
       content,
       category_id,
       req.user.id,
-      show_author || 1,  // ✅ Default: харуулах
-      cover_image,
+      show_author || 1,
+      featured_image,  // ✅ CHANGED: cover_image → featured_image
       tags,
       status,
       is_featured ? 1 : 0,
@@ -352,6 +356,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
 // ============================================
 // UPDATE ARTICLE (Admin only)
+// ✅ FIXED: Changed cover_image to featured_image
 // ============================================
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
@@ -362,7 +367,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       excerpt,
       content,
       category_id,
-      cover_image,
+      featured_image,  // ✅ CHANGED: cover_image → featured_image
       show_author,
       tags,
       status,
@@ -379,7 +384,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // ✅ FIXED: Column болон values эрэмбэ зөв болгосон
+    // ✅ FIXED: Use featured_image instead of cover_image
     await db.query(`
       UPDATE articles SET
         title = ?,
@@ -388,7 +393,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         content = ?,
         category_id = ?,
         show_author = ?,
-        cover_image = ?,
+        featured_image = ?,
         tags = ?,
         status = ?,
         is_featured = ?,
@@ -401,8 +406,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       excerpt,
       content,
       category_id,
-      show_author,  // ✅ Зөв байрлалд
-      cover_image,  // ✅ Зөв байрлалд
+      show_author,
+      featured_image,  // ✅ CHANGED: cover_image → featured_image
       tags,
       status,
       is_featured ? 1 : 0,
@@ -494,3 +499,23 @@ router.post('/slug/:slug/increment-view', async (req, res) => {
 });
 
 module.exports = router;
+
+// ============================================
+// SUMMARY OF CHANGES:
+// ============================================
+// 1. GET /:id (line 250): Removed "a.featured_image as cover_image" alias
+//    - Now returns featured_image properly
+// 
+// 2. POST / (line 288, 320, 330): cover_image → featured_image
+//    - Request body field changed
+//    - INSERT query column changed
+//    - Values array updated
+//
+// 3. PUT /:id (line 365, 391, 405): cover_image → featured_image
+//    - Request body field changed
+//    - UPDATE query column changed
+//    - Values array updated
+//
+// Result: Backend now properly saves and returns featured_image field
+//         matching frontend expectations
+// ============================================
