@@ -134,7 +134,14 @@ exports.getSubmissionById = async (req, res) => {
 // Батлагдсан саналуудыг авах (PUBLIC - web-д харуулах)
 exports.getApprovedSubmissions = async (req, res) => {
   try {
-    const { limit = 10 } = req.query;
+    // Limit утгыг зөв parse хийх
+    let limit = 10; // Default
+    if (req.query.limit) {
+      const parsed = parseInt(req.query.limit, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        limit = Math.min(parsed, 100); // Max 100
+      }
+    }
 
     const [submissions] = await db.execute(
       `SELECT s.id, s.name, s.title, s.content, s.created_at
@@ -142,11 +149,10 @@ exports.getApprovedSubmissions = async (req, res) => {
        WHERE s.category_id = 7 AND s.status = 'approved'
        ORDER BY s.created_at DESC 
        LIMIT ?`,
-      [parseInt(limit)]
+      [limit]
     );
 
     res.json(submissions);
-
   } catch (error) {
     console.error('Get approved submissions error:', error);
     res.status(500).json({ error: 'Саналуудыг унших алдаа гарлаа' });
