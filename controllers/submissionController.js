@@ -56,10 +56,13 @@ exports.getAllSubmissions = async (req, res) => {
       params.push(status);
     }
 
-    query += ` ORDER BY s.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit), parseInt(offset));
+  // Build full query with safe integer values
+    const safeLimit = parseInt(limit);
+    const safeOffset = parseInt(offset);
 
-    const [submissions] = await db.execute(query, params);
+    let finalQuery = query + ` ORDER BY s.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
+
+    const [submissions] = await db.query(finalQuery, params);
 
     // Нийт тоо
     const [countResult] = await db.execute(
@@ -143,13 +146,12 @@ exports.getApprovedSubmissions = async (req, res) => {
       }
     }
 
-    const [submissions] = await db.execute(
-      `SELECT s.id, s.name, s.title, s.content, s.created_at
-       FROM submissions s
-       WHERE s.category_id = 7 AND s.status = 'approved'
-       ORDER BY s.created_at DESC 
-       LIMIT ?`,
-      [limit]
+    const [submissions] = await db.query(
+        `SELECT s.id, s.name, s.title, s.content, s.created_at
+        FROM submissions s
+        WHERE s.category_id = 7 AND s.status = 'approved'
+        ORDER BY s.created_at DESC
+        LIMIT ${parseInt(limit)}`
     );
 
     res.json(submissions);
