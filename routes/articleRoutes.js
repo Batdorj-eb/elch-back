@@ -479,6 +479,7 @@ router.post('/', authenticateToken, async (req, res) => {
     if (validatedFeatured && status === 'published') {
       await clearFeaturedSlot(validatedFeatured);
     }
+    const showAuthorValue = (show_author === 0 || show_author === false) ? 0 : (show_author ? 1 : 1);
 
     const [result] = await db.query(`
       INSERT INTO articles (
@@ -492,7 +493,7 @@ router.post('/', authenticateToken, async (req, res) => {
       content,
       category_id,
       req.user.id,
-      show_author || 1,
+      showAuthorValue, 
       featured_image,
       tags,
       status,
@@ -517,7 +518,9 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// UPDATE засах
+// ============================================
+// PUT - Update article (FIXED)
+// ============================================
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -535,7 +538,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       is_breaking
     } = req.body;
 
-    const [existing] = await db.query('SELECT id, is_featured FROM articles WHERE id = ?', [id]);
+    const [existing] = await db.query('SELECT id, is_featured, show_author FROM articles WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({
         success: false,
@@ -547,9 +550,18 @@ router.put('/:id', authenticateToken, async (req, res) => {
       ? validateFeaturedPriority(is_featured)
       : existing[0].is_featured;
 
-    // ✅ NEW: Clear slot if changing to featured position and status is published
     if (validatedFeatured && status === 'published') {
       await clearFeaturedSlot(validatedFeatured, parseInt(id));
+    }
+
+    // ✅ FIXED: show_author = 0 байхад зөв хадгална
+    let showAuthorValue;
+    if (show_author === 0 || show_author === false) {
+      showAuthorValue = 0;
+    } else if (show_author === 1 || show_author === true) {
+      showAuthorValue = 1;
+    } else {
+      showAuthorValue = existing[0].show_author; // Өмнөх утгыг хадгална
     }
 
     await db.query(`
@@ -573,7 +585,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       excerpt,
       content,
       category_id,
-      show_author,
+      showAuthorValue,  // ✅ FIXED
       featured_image,
       tags,
       status,
@@ -595,7 +607,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
     });
   }
 });
-
 // ============================================
 // DELETE ARTICLE (Admin only)
 // ============================================
