@@ -51,10 +51,10 @@ app.use(cors(corsOptions));
 
 
 // JSON body parser (POST/PUT requests-д зориулж)
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // URL encoded data parser
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files (зургууд)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
