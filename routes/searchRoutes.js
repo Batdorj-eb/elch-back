@@ -59,7 +59,7 @@ router.get('/', async (req, res) => {
         a.excerpt,
         a.content,
         a.featured_image, 
-        a.cover_image as coverImage,
+        a.featured_image as coverImage,
         a.published_at as publishedAt,
         a.view_count as viewCount,
         a.tags,
