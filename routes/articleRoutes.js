@@ -259,6 +259,37 @@ router.get('/breaking', async (req, res) => {
   }
 });
 
+
+// GET /api/articles/tags
+router.get('/tags', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    
+    const [articles] = await db.query(`
+      SELECT tags FROM articles 
+      WHERE status = 'published' AND tags IS NOT NULL AND tags != ''
+    `);
+    
+    const allTags = new Set();
+    articles.forEach(article => {
+      if (article.tags) {
+        article.tags.split(',').forEach(tag => {
+          const trimmed = tag.trim();
+          if (trimmed) allTags.add(trimmed);
+        });
+      }
+    });
+    
+    res.json({
+      success: true,
+      tags: Array.from(allTags).slice(0, limit)
+    });
+  } catch (error) {
+    console.error('❌ Tags error:', error);
+    res.status(500).json({ success: false, tags: [] });
+  }
+});
+
 // ============================================
 // GET ALL ARTICLES
 // ============================================
@@ -676,6 +707,9 @@ router.post('/slug/:slug/increment-view', async (req, res) => {
     });
   }
 });
+
+// routes/articleRoutes.js эсвэл шинэ routes/tagRoutes.js
+
 
 module.exports = router;
 

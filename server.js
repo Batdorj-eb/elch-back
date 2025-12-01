@@ -7,7 +7,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config(); // .env файл уншина
-
+// server.js-ийн эхэнд
+require('./cron/weeklyNewsletter'); // Weekly newsletter cron job-ийг импортлох
 // Express app үүсгэх
 const app = express();
 
@@ -81,6 +82,7 @@ const searchRoutes = require('./routes/searchRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const userRoutes = require('./routes/userRoutes');
 const submissionsRoutes = require('./routes/submissions');
+const newsletterRoutes = require('./routes/newsletterRoutes');
 
 // Routes ашиглах
 app.use('/api/auth', authRoutes);
@@ -92,6 +94,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/submissions', submissionsRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 // ============================================
 // TEST ROUTE (Server ажиллаж байгааг шалгах)
