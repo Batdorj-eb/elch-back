@@ -2,7 +2,7 @@
 // ELCH NEWS - BACKEND SERVER
 // ============================================
 // Энэ файл Express server-ийг эхлүүлнэ
-
+process.env.TZ = 'Asia/Ulaanbaatar';
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
