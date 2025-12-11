@@ -66,6 +66,7 @@ router.get('/featured', async (req, res) => {
         a.view_count, a.views,
         a.status, a.tags,
         a.is_featured, a.is_breaking, 
+        a.published_at, 
         a.created_at, a.updated_at,
         c.name as category_name, c.slug as category_slug,
         u.full_name as author_name, u.username as author_username
@@ -107,6 +108,7 @@ router.get('/featured/main', async (req, res) => {
         a.view_count, a.views,
         a.status, a.tags,
         a.is_featured, a.is_breaking, 
+        a.published_at, 
         a.created_at, a.updated_at,
         c.name as category_name, c.slug as category_slug,
         u.full_name as author_name, u.username as author_username
@@ -146,6 +148,7 @@ router.get('/featured/secondary', async (req, res) => {
         a.view_count, a.views,
         a.status, a.tags,
         a.is_featured, a.is_breaking, 
+        a.published_at, 
         a.created_at, a.updated_at,
         c.name as category_name, c.slug as category_slug,
         u.full_name as author_name, u.username as author_username
@@ -232,6 +235,7 @@ router.get('/breaking', async (req, res) => {
         a.view_count, a.views,
         a.status, a.tags,
         a.is_featured, a.is_breaking, 
+        a.published_at, 
         a.created_at, a.updated_at,
         c.name as category_name, c.slug as category_slug,
         u.full_name as author_name, u.username as author_username
@@ -293,6 +297,7 @@ router.get('/tags', async (req, res) => {
 // ============================================
 // GET ALL ARTICLES
 // ============================================
+// ============================================
 router.get('/', async (req, res) => {
   try {
     const { 
@@ -314,6 +319,7 @@ router.get('/', async (req, res) => {
         a.view_count, a.views,
         a.status, a.tags,
         a.is_featured, a.is_breaking, 
+        a.published_at,    
         a.created_at, a.updated_at,
         c.name as category_name, c.slug as category_slug,
         u.full_name as author_name, u.username as author_username
@@ -324,14 +330,22 @@ router.get('/', async (req, res) => {
     `;
     const params = [];
 
+    // Status filter
+    if (status === 'all') {
+      // Admin хүсэлт - бүх статус (шүүлт нэмэхгүй)
+    } else if (status) {
+      // Тодорхой статус
+      query += ' AND a.status = ?';
+      params.push(status);
+    } else {
+      // Default - зөвхөн published (public API)
+      query += ' AND a.status = ?';
+      params.push('published');
+    }
+
     if (category) {
       query += ' AND c.slug = ?';
       params.push(category);
-    }
-
-    if (status) {
-      query += ' AND a.status = ?';
-      params.push(status);
     }
 
     if (search) {
@@ -345,25 +359,33 @@ router.get('/', async (req, res) => {
 
     const [articles] = await db.query(query, params);
 
-    // Get total count
-    let countQuery = 'SELECT COUNT(*) as total FROM articles a';
+    // Get total count - ижил шүүлтээр
+    let countQuery = `
+      SELECT COUNT(*) as total 
+      FROM articles a
+      LEFT JOIN categories c ON a.category_id = c.id
+      WHERE 1=1
+    `;
     const countParams = [];
-    
-    if (category) {
-      countQuery += ' LEFT JOIN categories c ON a.category_id = c.id WHERE c.slug = ?';
-      countParams.push(category);
-    } else {
-      countQuery += ' WHERE 1=1';
-    }
-    
-    if (status) {
-      countQuery += category ? ' AND a.status = ?' : ' WHERE a.status = ?';
+
+    // Status filter (дээрхтэй ижил логик)
+    if (status === 'all') {
+      // Шүүлт нэмэхгүй
+    } else if (status) {
+      countQuery += ' AND a.status = ?';
       countParams.push(status);
+    } else {
+      countQuery += ' AND a.status = ?';
+      countParams.push('published');
+    }
+
+    if (category) {
+      countQuery += ' AND c.slug = ?';
+      countParams.push(category);
     }
     
     if (search) {
-      const hasWhere = category || status;
-      countQuery += hasWhere ? ' AND (a.title LIKE ? OR a.content LIKE ?)' : ' WHERE (a.title LIKE ? OR a.content LIKE ?)';
+      countQuery += ' AND (a.title LIKE ? OR a.content LIKE ?)';
       countParams.push(`%${search}%`, `%${search}%`);
     }
 
@@ -468,7 +490,7 @@ async function clearFeaturedSlot(priority, currentArticleId = null) {
     console.log(`✅ Cleared slot ${priority} from article ${existing[0].id}`);
   }
 }
-//Create article
+//Create article - WITH SCHEDULED SUPPORT
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const {
@@ -482,7 +504,8 @@ router.post('/', authenticateToken, async (req, res) => {
       tags,
       status = 'draft',
       is_featured = null,
-      is_breaking = false
+      is_breaking = false,
+      published_at = null  
     } = req.body;
 
     if (!title || !slug || !content || !category_id) {
@@ -506,17 +529,40 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const validatedFeatured = validateFeaturedPriority(is_featured);
 
-    // ✅ NEW: Clear slot if taking featured position
     if (validatedFeatured && status === 'published') {
       await clearFeaturedSlot(validatedFeatured);
     }
+    
     const showAuthorValue = (show_author === 0 || show_author === false) ? 0 : (show_author ? 1 : 1);
+
+
+    let finalPublishedAt = null;
+    let finalStatus = status;
+
+    if (published_at) {
+      const scheduledDate = new Date(published_at);
+      const now = new Date();
+      
+      if (scheduledDate > now) {
+
+        finalStatus = 'scheduled';
+        finalPublishedAt = scheduledDate;
+      } else {
+
+        finalPublishedAt = scheduledDate;
+        if (status === 'published' || status === 'scheduled') {
+          finalStatus = 'published';
+        }
+      }
+    } else if (status === 'published') {
+      finalPublishedAt = new Date();
+    }
 
     const [result] = await db.query(`
       INSERT INTO articles (
         title, slug, excerpt, content, category_id, author_id,
-        show_author, featured_image, tags, status, is_featured, is_breaking
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        show_author, featured_image, tags, status, is_featured, is_breaking, published_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       title,
       slug,
@@ -527,16 +573,21 @@ router.post('/', authenticateToken, async (req, res) => {
       showAuthorValue, 
       featured_image,
       tags,
-      status,
+      finalStatus,
       validatedFeatured,
-      is_breaking ? 1 : 0
+      is_breaking ? 1 : 0,
+      finalPublishedAt
     ]);
 
     res.status(201).json({
       success: true,
-      message: 'Нийтлэл амжилттай үүсгэгдлээ!',
+      message: finalStatus === 'scheduled' 
+        ? `Нийтлэл ${new Date(finalPublishedAt).toLocaleString('mn-MN')}-д нийтлэгдэхээр төлөвлөгдлөө!`
+        : 'Нийтлэл амжилттай үүсгэгдлээ!',
       data: {
-        id: result.insertId
+        id: result.insertId,
+        status: finalStatus,
+        published_at: finalPublishedAt
       }
     });
   } catch (error) {
@@ -550,7 +601,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// PUT - Update article (FIXED)
+// PUT - Update article (WITH SCHEDULED SUPPORT)
 // ============================================
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
@@ -566,10 +617,11 @@ router.put('/:id', authenticateToken, async (req, res) => {
       tags,
       status,
       is_featured,
-      is_breaking
+      is_breaking,
+      published_at  
     } = req.body;
 
-    const [existing] = await db.query('SELECT id, is_featured, show_author FROM articles WHERE id = ?', [id]);
+    const [existing] = await db.query('SELECT id, is_featured, show_author, published_at FROM articles WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({
         success: false,
@@ -585,14 +637,36 @@ router.put('/:id', authenticateToken, async (req, res) => {
       await clearFeaturedSlot(validatedFeatured, parseInt(id));
     }
 
-    // ✅ FIXED: show_author = 0 байхад зөв хадгална
     let showAuthorValue;
     if (show_author === 0 || show_author === false) {
       showAuthorValue = 0;
     } else if (show_author === 1 || show_author === true) {
       showAuthorValue = 1;
     } else {
-      showAuthorValue = existing[0].show_author; // Өмнөх утгыг хадгална
+      showAuthorValue = existing[0].show_author;
+    }
+
+
+    let finalPublishedAt = existing[0].published_at;
+    let finalStatus = status;
+
+    if (published_at !== undefined) {
+      if (published_at) {
+        const scheduledDate = new Date(published_at);
+        const now = new Date();
+        
+        if (scheduledDate > now && (status === 'scheduled' || status === 'published')) {
+          finalStatus = 'scheduled';
+          finalPublishedAt = scheduledDate;
+        } else {
+          finalPublishedAt = scheduledDate;
+          if (status === 'scheduled') {
+            finalStatus = 'published';
+          }
+        }
+      } else if (status === 'published' && !existing[0].published_at) {
+        finalPublishedAt = new Date();
+      }
     }
 
     await db.query(`
@@ -608,6 +682,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         status = ?,
         is_featured = ?,
         is_breaking = ?,
+        published_at = ?,
         updated_at = NOW()
       WHERE id = ?
     `, [
@@ -616,18 +691,25 @@ router.put('/:id', authenticateToken, async (req, res) => {
       excerpt,
       content,
       category_id,
-      showAuthorValue,  // ✅ FIXED
+      showAuthorValue,
       featured_image,
       tags,
-      status,
+      finalStatus,
       validatedFeatured,
       is_breaking ? 1 : 0,
+      finalPublishedAt,
       id
     ]);
 
     res.json({
       success: true,
-      message: 'Нийтлэл амжилттай шинэчлэгдлээ!'
+      message: finalStatus === 'scheduled'
+        ? `Нийтлэл ${new Date(finalPublishedAt).toLocaleString('mn-MN')}-д нийтлэгдэхээр төлөвлөгдлөө!`
+        : 'Нийтлэл амжилттай шинэчлэгдлээ!',
+      data: {
+        status: finalStatus,
+        published_at: finalPublishedAt
+      }
     });
   } catch (error) {
     console.error('Update article error:', error);

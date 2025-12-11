@@ -8,7 +8,8 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config(); // .env файл уншина
 // server.js-ийн эхэнд
-require('./cron/weeklyNewsletter'); // Weekly newsletter cron job-ийг импортлох
+require('./cron/weeklyNewsletter'); 
+require('./cron/scheduler'); 
 // Express app үүсгэх
 const app = express();
 
