@@ -303,13 +303,15 @@ router.get('/', async (req, res) => {
     const { 
       category, 
       search, 
+      q,  
       limit = 20, 
       offset = 0,
       status = null,
       sort = 'created_at',
       order = 'DESC'
     } = req.query;
-
+    
+    const searchTerm = q || search; 
     let query = `
       SELECT 
         a.id, a.title, a.slug, a.excerpt, a.content, 
@@ -348,9 +350,9 @@ router.get('/', async (req, res) => {
       params.push(category);
     }
 
-    if (search) {
-      query += ' AND (a.title LIKE ? OR a.content LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
+    if (searchTerm) {
+      query += ' AND (a.title LIKE ? OR a.excerpt LIKE ?)';
+      params.push(`%${searchTerm}%`, `%${searchTerm}%`);
     }
 
     query += ` ORDER BY a.${sort} ${order}`;
@@ -384,9 +386,9 @@ router.get('/', async (req, res) => {
       countParams.push(category);
     }
     
-    if (search) {
-      countQuery += ' AND (a.title LIKE ? OR a.content LIKE ?)';
-      countParams.push(`%${search}%`, `%${search}%`);
+    if (searchTerm) {  // ✅ search биш searchTerm
+      countQuery += ' AND (a.title LIKE ? OR a.excerpt LIKE ?)';
+      countParams.push(`%${searchTerm}%`, `%${searchTerm}%`);
     }
 
     const [countResult] = await db.query(countQuery, countParams);
