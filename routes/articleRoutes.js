@@ -355,7 +355,23 @@ router.get('/', async (req, res) => {
       params.push(`%${searchTerm}%`, `%${searchTerm}%`);
     }
 
-    query += ` ORDER BY a.${sort} ${order}`;
+    const allowedSorts = new Set([
+      'published_at',
+      'created_at',
+      'updated_at',
+      'views',
+      'view_count',
+      'id',
+      'title'
+    ]);
+    const sortKey = allowedSorts.has(String(sort)) ? String(sort) : 'created_at';
+    const sortDir = String(order).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    if (sortKey === 'published_at') {
+      query += ` ORDER BY COALESCE(a.published_at, a.created_at) ${sortDir}, a.id DESC`;
+    } else {
+      query += ` ORDER BY a.${sortKey} ${sortDir}`;
+    }
     query += ' LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
